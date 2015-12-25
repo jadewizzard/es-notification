@@ -10,10 +10,16 @@ ES Notification модул для системного монитора Conky,
 
 На данный момент поддерживаются следующие сервисы:
  - VK.com
+
 В планах реализовать поддержку:
- - Telegramm
+ - Telegram
  - Gmail
  - Yandex.Mail
+
+TO-DO
+ - Разделить методы установки сервиса
+   и метод авторизации в сервисе.
+ - добавить поддержку Telegram
 
 Автор модуля - Дмитрий Буряков
 """
@@ -23,6 +29,7 @@ import webbrowser
 import time
 import requests
 import json
+
 
 class InitialCheck(object):
     """
@@ -117,7 +124,7 @@ class VKontakte(object):
             time.sleep(1)
             print("\n")
 
-            code = raw_input("Код: ")
+            code = raw_input("Код: ") # запрашиваем код для авторизации
 
             if code:
                 print("Код принят")
@@ -139,10 +146,50 @@ class VKontakte(object):
             else:
                 print("Вы не ввели код, приложение будет закрыто.")
 
-
     def getUnreadMessage(self):
         src = requests.get("https://api.vk.com/method/messages.getDialogs?"
                            "&access_token=71be8543f00c7068e47686600c05bdfc8825895db1503f63430fec9267c4482a85bc45e3b71e3bd46df71"
                            "&unread=1"
                            "&v=5.14").text # получаем ответ от сервера в JSON формате
         print(json.loads(src)["response"]["count"])
+
+
+class GMail(object):
+
+    def __init__(self):
+        pass
+
+    def install(self):
+        pass
+
+    def authorization(self):
+        print("=================")
+        print("Авторизация Gmail")
+        print("=================")
+        print("Через несколько секунд в вашем браузере будет открыто новое окно "
+              "вам нужно скопировать код из поля ввода и передать его приложению.")
+        print("1) Хорошо")
+        print("2) Я не знаю, что мне делать (подробный мануал)")
+        print("3) Выход")
+
+        act = input("Выберете действие: ")
+        if act == 1:
+            time.sleep(3) # задержка перед открытием браузера
+            webbrowser.open("https://accounts.google.com/o/oauth2/v2/auth?"
+                            "scope=https://www.googleapis.com/auth/gmail.readonly&"
+                            "client_id=1097952731229-b4cdh4c60q8340r8c730cmj7tdnggb1n.apps.googleusercontent.com&"
+                            "redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&"
+                            "access_type=offline&"
+                            "response_type=code") # открываем окно авторизации
+
+            # Следующие строки нужны для того, что бы
+            # предотвратить сливание ввода и сообщения
+            # от модуля webbrowser об открытие новой вкладки
+            time.sleep(1)
+            print("\n")
+
+            code = raw_input("Код: ") # запрашиваем код из поля ввода
+            
+
+    def getMessage(self):
+        pass
