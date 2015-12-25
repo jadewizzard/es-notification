@@ -9,8 +9,10 @@ import sys
 
 check = app.InitialCheck()
 vk = app.VKontakte()
+gmail = app.GMail()
 
-app_arg = sys.argv[1]
+if sys.argv[1]:
+    app_arg = sys.argv[1]
 # получаем аргумент переданный программе
 # первый аргумент передоваемый программе
 # это указание на сервис из которого нужно
@@ -22,3 +24,6 @@ app_arg = sys.argv[1]
 if app_arg == "-vk":
     if check.vk():
         vk.getUnreadMessage()
+
+if app_arg == "-gmail":
+    gmail.authorization()
