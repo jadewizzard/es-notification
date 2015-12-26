@@ -29,7 +29,11 @@ import webbrowser
 import time
 import requests
 import json
+import httplib2
 
+from oauth2client import client
+from oauth2client.client import FlowExchangeError
+from googleapiclient.discovery import build
 
 class InitialCheck(object):
     """
@@ -157,7 +161,7 @@ class VKontakte(object):
 class GMail(object):
 
     def __init__(self):
-        pass
+        self.auth_code = "4/7_blRKFPJlFdAp2UYS9XR9p8gqB_quLlk0bJDkUKyts"
 
     def install(self):
         pass
@@ -174,22 +178,31 @@ class GMail(object):
 
         act = input("Выберете действие: ")
         if act == 1:
-            time.sleep(3) # задержка перед открытием браузера
-            webbrowser.open("https://accounts.google.com/o/oauth2/v2/auth?"
-                            "scope=https://www.googleapis.com/auth/gmail.readonly&"
-                            "client_id=1097952731229-b4cdh4c60q8340r8c730cmj7tdnggb1n.apps.googleusercontent.com&"
-                            "redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&"
-                            "access_type=offline&"
-                            "response_type=code") # открываем окно авторизации
+            flow = client.flow_from_clientsecrets(
+                "client_secret_490232413632-h95bfg9ck1ffc1gtoaanue0vakn5acnv.apps.googleusercontent.com.json",
+                scope="https://www.googleapis.com/auth/gmail.readonly",
+                redirect_uri="urn:ietf:wg:oauth:2.0:oob")
+            flow.params["access_type"] = "offline" # запрашиваем оффлайн доступ
 
-            # Следующие строки нужны для того, что бы
-            # предотвратить сливание ввода и сообщения
-            # от модуля webbrowser об открытие новой вкладки
+            auth_uri = flow.step1_get_authorize_url() # получаем URL для авторизации
+            time.sleep(3) # задержка перед открытием браузера
+            webbrowser.open(auth_uri) # открываем окно авторизации
+
             time.sleep(1)
             print("\n")
+            # для красивого отображения в консоли
 
-            code = raw_input("Код: ") # запрашиваем код из поля ввода
-            
+            code = raw_input("Код: ") # запрашиваем код
+
+            if code:
+                credentials = flow.step2_exchange(self.auth_code)
+                http_auth = credentials.authorize(httplib2.Http())
+
+                message_service = build("gmail", "v1", http=http_auth)
+                resutl = message_service.users().messages().list(userId="jadewizzard@gmail.com").execute()
+                print(len(resutl))
 
     def getMessage(self):
-        pass
+        r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?key=AIzaSyDNQUPdJYYK1gtUQ1DFcdxy39mDwbBuITg")
+        print(r.text)
+
