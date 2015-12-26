@@ -26,4 +26,4 @@ if app_arg == "-vk":
         vk.getUnreadMessage()
 
 if app_arg == "-gmail":
-    gmail.authorization()
+    gmail.getMessage()
