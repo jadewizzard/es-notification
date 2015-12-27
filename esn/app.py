@@ -29,11 +29,6 @@ import webbrowser
 import time
 import requests
 import json
-import httplib2
-
-from oauth2client import client
-from oauth2client.client import FlowExchangeError
-from googleapiclient.discovery import build
 
 class InitialCheck(object):
     """
@@ -101,10 +96,10 @@ class VKontakte(object):
         self.app_key = "PF3XLgWZBWp417MXLmrf"
         self.config_array = {}
 
-    def install(self):
-        print("===================")
-        print("Настройка ВКонтакте")
-        print("===================")
+    def authorization(self):
+        print("=====================")
+        print("Авторизация ВКонтакте")
+        print("=====================")
         print("Через несколько секунд в вашем браузере будет открыто новое окно "
               "скопируйте параметр code из адесной строки и передайте программе.")
         print("1) Хорошо")
@@ -135,13 +130,13 @@ class VKontakte(object):
                 print("==========")
                 print("Ожидайте...")
 
-                src = requests.get("https://oauth.vk.com/access_token?"
+                r = requests.get("https://oauth.vk.com/access_token?"
                                     "client_id="+ str(self.app_id) +
                                     "&client_secret="+ self.app_key +
                                     "&redirect_uri=https://oauth.vk.com/blank.html"
                                     "&code="+ code +"")
 
-                self.access_token = json.loads(src.text)["access_token"]
+                self.access_token = json.loads(r.text)["access_token"]
                 if self.access_token:
                     print("Готово...")
                     print(self.access_token) # debug info
@@ -151,17 +146,25 @@ class VKontakte(object):
                 print("Вы не ввели код, приложение будет закрыто.")
 
     def getUnreadMessage(self):
-        src = requests.get("https://api.vk.com/method/messages.getDialogs?"
+        r = requests.get("https://api.vk.com/method/messages.getDialogs?"
                            "&access_token=71be8543f00c7068e47686600c05bdfc8825895db1503f63430fec9267c4482a85bc45e3b71e3bd46df71"
                            "&unread=1"
                            "&v=5.14").text # получаем ответ от сервера в JSON формате
-        print(json.loads(src)["response"]["count"])
+        print(json.loads(r)["response"]["count"])
 
 
 class GMail(object):
 
     def __init__(self):
-        self.auth_code = "4/7_blRKFPJlFdAp2UYS9XR9p8gqB_quLlk0bJDkUKyts"
+        self.auth_code = None
+        self.access_token = None
+        self.refresh_token = None
+        self.next_page_token = None
+
+        # данные для доступа к GMAIL API
+        self.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
+        self.client_id = "490232413632-h95bfg9ck1ffc1gtoaanue0vakn5acnv.apps.googleusercontent.com"
+        self.client_secret = "dHX1alSVj6_Cl3QDPrGPW5bj"
 
     def install(self):
         pass
@@ -178,13 +181,12 @@ class GMail(object):
 
         act = input("Выберете действие: ")
         if act == 1:
-            flow = client.flow_from_clientsecrets(
-                "client_secret_490232413632-h95bfg9ck1ffc1gtoaanue0vakn5acnv.apps.googleusercontent.com.json",
-                scope="https://www.googleapis.com/auth/gmail.readonly",
-                redirect_uri="urn:ietf:wg:oauth:2.0:oob")
-            flow.params["access_type"] = "offline" # запрашиваем оффлайн доступ
+            auth_uri = "https://accounts.google.com/o/oauth2/v2/auth?" \
+                       "scope=https://www.googleapis.com/auth/gmail.readonly&" \
+                       "redirect_uri="+ self.redirect_uri +"&" \
+                       "response_type=code&" \
+                       "client_id="+ self.client_id +""
 
-            auth_uri = flow.step1_get_authorize_url() # получаем URL для авторизации
             time.sleep(3) # задержка перед открытием браузера
             webbrowser.open(auth_uri) # открываем окно авторизации
 
@@ -195,14 +197,50 @@ class GMail(object):
             code = raw_input("Код: ") # запрашиваем код
 
             if code:
-                credentials = flow.step2_exchange(self.auth_code)
-                http_auth = credentials.authorize(httplib2.Http())
+                # получаем access token
+                r = requests.post("https://www.googleapis.com/oauth2/v4/token",
+                                  data={"code": code,
+                                        "client_id": self.client_id,
+                                        "client_secret": self.client_secret,
+                                        "redirect_uri": self.redirect_uri,
+                                        "grant_type": "authorization_code",
+                                        "access_type": "offline"})
+                response_array = json.loads(r.text)
+                self.access_token = response_array["access_token"]
+                self.refresh_token = response_array["refresh_token"]
 
-                message_service = build("gmail", "v1", http=http_auth)
-                resutl = message_service.users().messages().list(userId="jadewizzard@gmail.com").execute()
-                print(len(resutl))
+    def getUnreadMessage(self):
+        """
+        TODO ЗАКОМЕНИТЬ КОД!
+        """
+        threadCounter = 0
+        if not self.next_page_token:
+            r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
+                             "q=is:unread&"
+                             "access_token=ya29.VwJdu1hAHB48Jd-cnuHxw_-CCbUuH7XIrdPQxiGuoqmO1Pcw2WaTs97tqj8By6GhBndn")
+            response_array = json.loads(r.text)
 
-    def getMessage(self):
-        r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?key=AIzaSyDNQUPdJYYK1gtUQ1DFcdxy39mDwbBuITg")
-        print(r.text)
+            for thread in response_array["threads"]:
+                if thread["id"]:
+                    threadCounter = threadCounter + 1
 
+            if "nextPageToken" in response_array:
+                self.next_page_token = response_array["nextPageToken"]
+
+            while self.next_page_token:
+                r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
+                                 "q=is:unread&"
+                                 "pageToken="+ self.next_page_token +"&"
+                                 "access_token=ya29.VwJdu1hAHB48Jd-cnuHxw_-CCbUuH7XIrdPQxiGuoqmO1Pcw2WaTs97tqj8By6GhBndn")
+                response_array = json.loads(r.text)
+
+                for thread in response_array["threads"]:
+                    if thread["id"]:
+                        threadCounter = threadCounter + 1
+
+                if "nextPageToken" in response_array:
+                    self.next_page_token = response_array["nextPageToken"]
+                else:
+                    break
+
+        print(threadCounter)
