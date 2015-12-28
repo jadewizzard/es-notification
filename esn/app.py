@@ -57,7 +57,7 @@ class InitialCheck(object):
         if self.vk_status:
             return True # тесты!
         else:
-            self.vk_manager.install()
+            self.vk_manager.authorization()
 
 
 class Conky(object):
@@ -145,7 +145,7 @@ class VKontakte(object):
             else:
                 print("Вы не ввели код, приложение будет закрыто.")
 
-    def getUnreadMessage(self):
+    def get_unread_message(self):
         r = requests.get("https://api.vk.com/method/messages.getDialogs?"
                            "&access_token=71be8543f00c7068e47686600c05bdfc8825895db1503f63430fec9267c4482a85bc45e3b71e3bd46df71"
                            "&unread=1"
@@ -165,9 +165,6 @@ class GMail(object):
         self.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
         self.client_id = "490232413632-h95bfg9ck1ffc1gtoaanue0vakn5acnv.apps.googleusercontent.com"
         self.client_secret = "dHX1alSVj6_Cl3QDPrGPW5bj"
-
-    def install(self):
-        pass
 
     def authorization(self):
         print("=================")
@@ -209,38 +206,46 @@ class GMail(object):
                 self.access_token = response_array["access_token"]
                 self.refresh_token = response_array["refresh_token"]
 
-    def getUnreadMessage(self):
-        """
-        TODO ЗАКОМЕНИТЬ КОД!
-        """
-        threadCounter = 0
+                print(self.access_token)
+
+    def get_unread_message(self):
+        thread_counter = 0 # счётчик для кол-ва писем
         if not self.next_page_token:
+            """
+            изначально нам не нужен токен для перехода на следующую страницу,
+            поэтому совершаем 1 запрос без него, а последующе с ним (если токен есть)
+            """
             r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
                              "q=is:unread&"
-                             "access_token=ya29.VwJdu1hAHB48Jd-cnuHxw_-CCbUuH7XIrdPQxiGuoqmO1Pcw2WaTs97tqj8By6GhBndn")
+                             "access_token=ya29.WALUYXJ3uum_y-6uWkVXb9WbbfrNHuBakPbY2RrVIq9JjkG-AxeU3Nh3EBjF4MP7A-2P")
             response_array = json.loads(r.text)
 
             for thread in response_array["threads"]:
                 if thread["id"]:
-                    threadCounter = threadCounter + 1
+                    thread_counter = thread_counter + 1
 
             if "nextPageToken" in response_array:
                 self.next_page_token = response_array["nextPageToken"]
 
             while self.next_page_token:
+                """
+                если в полученном выше массиве response_array есть
+                next_page_token, значит в ящике есть ещё страницы,
+                циклом проходим по ним.
+                """
                 r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
                                  "q=is:unread&"
                                  "pageToken="+ self.next_page_token +"&"
-                                 "access_token=ya29.VwJdu1hAHB48Jd-cnuHxw_-CCbUuH7XIrdPQxiGuoqmO1Pcw2WaTs97tqj8By6GhBndn")
+                                 "access_token=ya29.WALUYXJ3uum_y-6uWkVXb9WbbfrNHuBakPbY2RrVIq9JjkG-AxeU3Nh3EBjF4MP7A-2P")
                 response_array = json.loads(r.text)
 
                 for thread in response_array["threads"]:
                     if thread["id"]:
-                        threadCounter = threadCounter + 1
+                        thread_counter = thread_counter + 1
 
                 if "nextPageToken" in response_array:
                     self.next_page_token = response_array["nextPageToken"]
                 else:
                     break
 
-        print(threadCounter)
+        print(thread_counter) # выводим кол-во непрочитанных сообщений
