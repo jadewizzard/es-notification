@@ -11,19 +11,10 @@ check = app.InitialCheck()
 vk = app.VKontakte()
 gmail = app.GMail()
 
-if sys.argv[1]:
-    app_arg = sys.argv[1]
-# получаем аргумент переданный программе
-# первый аргумент передоваемый программе
-# это указание на сервис из которого нужно
-# получить кол-во непрочитанных сообщений / писем
-# соответственно:
-# -vk - Вконтакте
-# -tm - Telegramm
-
-if app_arg == "-vk":
+#if 1 in sys.argv:
+if sys.argv[1] == "-vk":
     if check.vk():
-        vk.getUnreadMessage()
+        vk.get_unread_message()
 
-if app_arg == "-gmail":
-    gmail.getUnreadMessage()
+if sys.argv[1] == "-gmail":
+    gmail.get_unread_message()
