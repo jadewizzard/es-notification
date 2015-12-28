@@ -139,18 +139,37 @@ class VKontakte(object):
                 self.access_token = json.loads(r.text)["access_token"]
                 if self.access_token:
                     print("Готово...")
-                    print(self.access_token) # debug info
+                    # print(self.access_token) # debug info
 
-                    self.config_array = {"vk": {"access_token": self.access_token}} # массив с кофигурацией
+                    config_array = {"vk": {"access_token": self.access_token}} # массив с кофигурацией
+                    self.write_config(json.dumps(config_array))
+                    # записываем данные о подключение в конфигурационный файл
             else:
                 print("Вы не ввели код, приложение будет закрыто.")
 
     def get_unread_message(self):
-        r = requests.get("https://api.vk.com/method/messages.getDialogs?"
-                           "&access_token=71be8543f00c7068e47686600c05bdfc8825895db1503f63430fec9267c4482a85bc45e3b71e3bd46df71"
+        f = open("config")
+        config_array = json.loads(f.read()) # получаем массив с кофнигурацией для VK
+
+        print(config_array["vk"])
+
+        if "vk" in config_array and "access_token" in config_array["vk"]:
+            """
+            проверям есть ли в файле массив VK с access_token
+            если да, то делаем запрос к API
+            """
+            r = requests.get("https://api.vk.com/method/messages.getDialogs?"
+                           "&access_token="+ config_array["vk"]["access_token"] +""
                            "&unread=1"
                            "&v=5.14").text # получаем ответ от сервера в JSON формате
-        print(json.loads(r)["response"]["count"])
+            print(json.loads(r)["response"]["count"])
+        else:
+            # иначе авторизуремся
+            self.authorization()
+
+    def write_config(self, config):
+        f = open("config", "w")
+        f.write(config + "\n")
 
 
 class GMail(object):
