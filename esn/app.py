@@ -30,35 +30,6 @@ import time
 import requests
 import json
 
-class InitialCheck(object):
-    """
-    Проверка и инициализация модуля,
-    а также связанных с модулем приложений
-    """
-
-    def __init__(self):
-        self.conky_status = False
-        self.vk_status = True # debug
-
-        self.vk_manager = VKontakte()
-        self.conky_manager = Conky()
-
-    def conky(self):
-        """
-        Если есть файл conky.conf, то скорее всего
-        conky на ПК установлен, иначе предлагаем установить.
-        """
-        if os.path.exists("/etc/conky/conky.conf"):
-            return True
-        else:
-            self.conky_manager.install()
-
-    def vk(self):
-        if self.vk_status:
-            return True # тесты!
-        else:
-            self.vk_manager.authorization()
-
 
 class Conky(object):
         """
@@ -66,6 +37,10 @@ class Conky(object):
         содержит базовые методы проверки
         и инициализации Conky
         """
+
+        def check(self):
+            if os.path.exists("/etc/conky/conky.conf"):
+                return True
 
         def install(self):
             """
@@ -79,7 +54,7 @@ class Conky(object):
             if act == "y":
                 self.distribution = os.uname()[1] # определям дистриубутив пользователя
 
-                if(self.distribution == "debian"):
+                if self.distribution == "debian":
                     # устанавливаем conky в deb-подобных ситсемах
                     os.system("sudo apt-get install conky")
 
@@ -95,6 +70,11 @@ class VKontakte(object):
         self.app_id = 5199621
         self.app_key = "PF3XLgWZBWp417MXLmrf"
         self.config_array = {}
+
+    def check(self):
+        access_token = self.get_token_from_config()
+        if access_token:
+            return True
 
     def authorization(self):
         print("=====================")
@@ -112,7 +92,7 @@ class VKontakte(object):
             # установка ВКонтакте
             time.sleep(3) # задержка перед открытием браузера
             webbrowser.open_new("https://oauth.vk.com/authorize?"
-                                "client_id="+ str(self.app_id) +
+                                "client_id="+str(self.app_id)+""
                                 "&display=page&redirect_uri="
                                 "https://oauth.vk.com/blank.html"
                                 "&scope=messages,offline&response_type=code")
@@ -131,46 +111,45 @@ class VKontakte(object):
                 print("Ожидайте...")
 
                 r = requests.get("https://oauth.vk.com/access_token?"
-                                    "client_id="+ str(self.app_id) +
-                                    "&client_secret="+ self.app_key +
+                                    "client_id="+str(self.app_id)+
+                                    "&client_secret="+self.app_key+
                                     "&redirect_uri=https://oauth.vk.com/blank.html"
-                                    "&code="+ code +"")
+                                    "&code="+code+"")
 
-                self.access_token = json.loads(r.text)["access_token"]
-                if self.access_token:
+                access_token = json.loads(r.text)["access_token"]
+                if access_token:
                     print("Готово...")
                     # print(self.access_token) # debug info
 
-                    config_array = {"vk": {"access_token": self.access_token}} # массив с кофигурацией
-                    self.write_config(json.dumps(config_array))
+                    self.write_config(access_token)
                     # записываем данные о подключение в конфигурационный файл
             else:
                 print("Вы не ввели код, приложение будет закрыто.")
 
     def get_unread_message(self):
+        access_token = self.get_token_from_config()
+        r = requests.get("https://api.vk.com/method/messages.getDialogs?"
+                         "&access_token="+access_token+""
+                         "&unread=1"
+                         "&v=5.14").text # получаем ответ от сервера в JSON формате
+        print(json.loads(r)["response"]["count"])
+
+    def get_token_from_config(self):
         f = open("config")
-        config_array = json.loads(f.read()) # получаем массив с кофнигурацией для VK
+        config_array = json.loads(f.read())
+        return config_array["vk"]["access_token"]
 
-        print(config_array["vk"])
-
-        if "vk" in config_array and "access_token" in config_array["vk"]:
-            """
-            проверям есть ли в файле массив VK с access_token
-            если да, то делаем запрос к API
-            """
-            r = requests.get("https://api.vk.com/method/messages.getDialogs?"
-                           "&access_token="+ config_array["vk"]["access_token"] +""
-                           "&unread=1"
-                           "&v=5.14").text # получаем ответ от сервера в JSON формате
-            print(json.loads(r)["response"]["count"])
-        else:
-            # иначе авторизуремся
-            self.authorization()
-
-    def write_config(self, config):
+    def write_config(self, access_token):
+        f = open("config")
+        config_array = json.loads(f.read())
+        # получаем массив с конфигом
+        config_array["vk"]["access_token"] = access_token
+        # создаем новый массив в с конфигом
+        json_conf = json.dumps(config_array)
+        # формируем json строку из массива с конфигом
         f = open("config", "w")
-        f.write(config + "\n")
-
+        f.write(json_conf)
+        # записываем токен в конфиг
 
 class GMail(object):
 
@@ -184,6 +163,11 @@ class GMail(object):
         self.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
         self.client_id = "490232413632-h95bfg9ck1ffc1gtoaanue0vakn5acnv.apps.googleusercontent.com"
         self.client_secret = "dHX1alSVj6_Cl3QDPrGPW5bj"
+
+    def check(self):
+        config_array = self.get_data_from_config()
+        if config_array["access_token"] and config_array["refresh_token"]:
+            return True
 
     def authorization(self):
         print("=================")
@@ -225,10 +209,14 @@ class GMail(object):
                 self.access_token = response_array["access_token"]
                 self.refresh_token = response_array["refresh_token"]
 
-                print(self.access_token)
+                if self.access_token and self.refresh_token:
+                    self.write_config()
+                    # записываем полученные значения в конфиг
 
     def get_unread_message(self):
         thread_counter = 0 # счётчик для кол-ва писем
+        config_array = self.get_data_from_config()
+        # массив с кофигами
         if not self.next_page_token:
             """
             изначально нам не нужен токен для перехода на следующую страницу,
@@ -236,7 +224,7 @@ class GMail(object):
             """
             r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
                              "q=is:unread&"
-                             "access_token=ya29.WALUYXJ3uum_y-6uWkVXb9WbbfrNHuBakPbY2RrVIq9JjkG-AxeU3Nh3EBjF4MP7A-2P")
+                             "access_token="+config_array["access_token"]+"")
             response_array = json.loads(r.text)
 
             for thread in response_array["threads"]:
@@ -254,8 +242,8 @@ class GMail(object):
                 """
                 r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
                                  "q=is:unread&"
-                                 "pageToken="+ self.next_page_token +"&"
-                                 "access_token=ya29.WALUYXJ3uum_y-6uWkVXb9WbbfrNHuBakPbY2RrVIq9JjkG-AxeU3Nh3EBjF4MP7A-2P")
+                                 "pageToken="+self.next_page_token+"&"
+                                 "access_token="+config_array["access_token"]+"")
                 response_array = json.loads(r.text)
 
                 for thread in response_array["threads"]:
@@ -268,3 +256,20 @@ class GMail(object):
                     break
 
         print(thread_counter) # выводим кол-во непрочитанных сообщений
+
+    def get_data_from_config(self):
+        f = open("config")
+        config_array = json.loads(f.read())
+        return config_array["gmail"]
+
+    def write_config(self):
+        f = open("config")
+        config_array = json.loads(f.read())
+        # получим массив с конфигом
+        config_array["gmail"]["access_token"] = self.access_token
+        config_array["gmail"]["refresh_token"] = self.refresh_token
+        # запишем новые значения в массив
+        json_config = json.dumps(config_array)
+        f = open("config", "w")
+        f.write(json_config)
+        # записываем измнения в файл конфигурации
