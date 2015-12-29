@@ -7,14 +7,27 @@
 import app
 import sys
 
-check = app.InitialCheck()
+conky = app.Conky()
 vk = app.VKontakte()
 gmail = app.GMail()
 
-#if 1 in sys.argv:
-if sys.argv[1] == "-vk":
-    if check.vk():
-        vk.get_unread_message()
+if conky.check():
+    if sys.argv[1] == "-vk":
+        if vk.check():
+            vk.get_unread_message()
+        else:
+            print("Нет соеденения с VK")
+            print("Запустите файл settings.py")
+            print("Для настройки VK")
 
-if sys.argv[1] == "-gmail":
-    gmail.get_unread_message()
+    if sys.argv[1] == "-gmail":
+        if gmail.check():
+            gmail.get_unread_message()
+        else:
+            print("Нет соеденения с GMail")
+            print("Запустите файл settings.py")
+            print("Для настройки GMail")
+            gmail.authorization()
+            # debug
+else:
+    conky.install()
