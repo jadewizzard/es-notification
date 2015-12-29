@@ -166,8 +166,21 @@ class GMail(object):
 
     def check(self):
         config_array = self.get_data_from_config()
-        if config_array["access_token"] and config_array["refresh_token"]:
-            return True
+        if config_array["access_token"]:
+            r = requests.get("https://www.googleapis.com/gmail/v1/users/jadewizzard@gmail.com/threads?"
+                             "q=is:unread&"
+                             "access_token="+config_array["access_token"]+"")
+            response_array = json.loads(r.text)
+
+            if "threads" in response_array:
+                return True
+            else:
+                self.get_new_token(config_array["refresh_token"])
+                # пересоздаём токен
+                return True
+        else:
+            return False
+
 
     def authorization(self):
         print("=================")
@@ -256,6 +269,25 @@ class GMail(object):
                     break
 
         print(thread_counter) # выводим кол-во непрочитанных сообщений
+
+    def get_new_token(self, refresh_token):
+        """
+        Функция для обновления токена по refresh token
+        """
+        # получаем access token
+        r = requests.post("https://www.googleapis.com/oauth2/v4/token",
+                          data={"client_id": self.client_id,
+                                "client_secret": self.client_secret,
+                                "refresh_token": refresh_token,
+                                "grant_type": "refresh_token"})
+        response_array = json.loads(r.text)
+        print(response_array)
+        self.access_token = response_array["access_token"]
+        # self.refresh_token = response_array["refresh_token"]
+
+        if self.access_token:
+            self.write_config()
+            # записываем полученные значения в конфиг
 
     def get_data_from_config(self):
         f = open("config")
