@@ -223,7 +223,7 @@ class GMail(object):
                 self.refresh_token = response_array["refresh_token"]
 
                 if self.access_token and self.refresh_token:
-                    self.write_config()
+                    self.write_config(self.access_token, self.refresh_token, "new")
                     # записываем полученные значения в конфиг
 
     def get_unread_message(self):
@@ -286,7 +286,7 @@ class GMail(object):
         # self.refresh_token = response_array["refresh_token"]
 
         if self.access_token:
-            self.write_config()
+            self.write_config(self.access_token)
             # записываем полученные значения в конфиг
 
     def get_data_from_config(self):
@@ -294,12 +294,19 @@ class GMail(object):
         config_array = json.loads(f.read())
         return config_array["gmail"]
 
-    def write_config(self):
+    def write_config(self, access_token, refresh_token=None, write_type=None):
         f = open("config")
         config_array = json.loads(f.read())
         # получим массив с конфигом
-        config_array["gmail"]["access_token"] = self.access_token
-        config_array["gmail"]["refresh_token"] = self.refresh_token
+        config_array["gmail"]["access_token"] = access_token
+        
+        if write_type == "new":
+            # записываем refresh token только в том случае
+            # если токена в конфиге не существует
+            # (т.е пользователь небыл авторизован
+            # или конфиг был испорчен.)
+            config_array["gmail"]["refresh_token"] = refresh_token
+
         # запишем новые значения в массив
         json_config = json.dumps(config_array)
         f = open("config", "w")
